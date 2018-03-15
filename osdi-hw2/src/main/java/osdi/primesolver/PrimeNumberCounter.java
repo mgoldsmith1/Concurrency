@@ -53,7 +53,7 @@ public class PrimeNumberCounter {
 
         startThreads(valuesToCheck, valuesThatArePrime);
 
-        final int workSize = 1000;
+        final int workSize = 2000;
         int index = -1;
         Long[] array = new Long[workSize];
         long taskCount = 0;

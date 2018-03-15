@@ -7,28 +7,29 @@ import osdi.locks.SpinLock;
  * Modify this as you see fit. you may not use anything in java.util.concurrent.* you may only use locks from osdi.locks.*
  */
 class BoundBufferImpl<T> implements SimpleQueue<T> {
+    
     private final int bufferSize;
     private final java.util.Queue<T> queue;
     private final Semaphore full;
     private final Semaphore empty;
-    private final SpinLock lock;
+    private final SpinLock spinLock;
 
     public BoundBufferImpl(int bufferSize) {
         this.bufferSize = bufferSize;
         queue = new java.util.ArrayDeque<>();
         full = new Semaphore(0);
         empty = new Semaphore(bufferSize);
-        lock = new SpinLock();
+        spinLock = new SpinLock();
     }
 
     @Override
     public void enqueue(T item) {
         empty.down();
         try {
-            lock.lock();
+            spinLock.lock();
             queue.add(item);
         } finally {
-            lock.unlock();
+            spinLock.unlock();
         }
         full.up();
     }
@@ -38,10 +39,10 @@ class BoundBufferImpl<T> implements SimpleQueue<T> {
         T item;
         full.down();
         try {
-            lock.lock();
+            spinLock.lock();
             item = queue.remove();
         } finally {
-            lock.unlock();
+            spinLock.unlock();
         }
         empty.up();
         return item;
@@ -50,10 +51,10 @@ class BoundBufferImpl<T> implements SimpleQueue<T> {
     @Override
     public boolean isEmpty() {
         try {
-            lock.lock();
+            spinLock.lock();
             return queue.isEmpty();
         } finally {
-            lock.unlock();
+            spinLock.unlock();
         }
     }
 }
