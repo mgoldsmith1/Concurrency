@@ -1,8 +1,5 @@
 package osdi;
 
-import java.time.Duration;
-import java.time.Instant;
-
 import osdi.primesolver.NumberRange;
 import osdi.primesolver.PrimeNumberCounter;
 
@@ -16,15 +13,22 @@ public class App
     private static final long thousand = 1000L;
     private static final long million = thousand * thousand;
     private static final long endValue = 200L * million;
-    
+
     /*
      * you may change this method. you must use NumberRange, PrimeNumberCounter, and reportNumberOfPrimes in here
      */
     public static void main( String[] args )
     {
+        long startTime = System.currentTimeMillis();
         NumberRange range = new NumberRange(startValue, endValue);
         long numberOfPrimesInRange = new PrimeNumberCounter().countPrimeNumbers(range);
-        reportNumberOfPrimes(numberOfPrimesInRange);    
+
+        long endTime = System.currentTimeMillis();
+        reportNumberOfPrimes(numberOfPrimesInRange);
+
+        long totalSeconds = (endTime - startTime) / 1000L;
+
+        System.out.println("took " + totalSeconds + " seconds");
     }
 
     /*

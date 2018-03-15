@@ -2,8 +2,10 @@ package osdi.primesolver;
 
 import osdi.collections.BoundBuffer;
 import osdi.collections.SimpleQueue;
+import osdi.locks.SpinLock;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 
 /*
@@ -12,6 +14,8 @@ import java.util.Collection;
 public class PrimeNumberCounter {
 
     private long currentCount = 0L;
+    private volatile long finishedTasks = 0;
+    private final SpinLock finishedLock = new SpinLock();
 
     /*
      * you may not modify this method
@@ -21,9 +25,9 @@ public class PrimeNumberCounter {
     }
 
     /*
-     * you may not modify the method, but you can modify the signature of the method if needed
+     * you may not modify this method
      */
-    private void startThreads(SimpleQueue<Long> valuesToCheck, SimpleQueue<Long> valuesThatArePrime) {
+    private void startThreads(SimpleQueue<Long[]> valuesToCheck, SimpleQueue<Long[]> valuesThatArePrime) {
         Collection<Thread> threads = new ArrayList<>();
         int threadCount = getThreadCount();
         for(int i = 0; i < threadCount; i++) {
@@ -44,53 +48,79 @@ public class PrimeNumberCounter {
      * you may modify this method
      */
     public long countPrimeNumbers(NumberRange range) {
-    	long size = range.iterator().next().SIZE;
-        SimpleQueue<Long> valuesToCheck = BoundBuffer.createBoundBufferWithSemaphores((int)size);
-        SimpleQueue<Long> valuesThatArePrime = BoundBuffer.createBoundBufferWithSemaphores((int)size/2);
+        SimpleQueue<Long[]> valuesToCheck = BoundBuffer.createBoundBufferWithSemaphores(100);
+        SimpleQueue<Long[]> valuesThatArePrime = BoundBuffer.createBoundBufferWithSemaphores(50);
 
         startThreads(valuesToCheck, valuesThatArePrime);
+
+        final int workSize = 1000;
+        int index = -1;
+        Long[] array = new Long[workSize];
+        long taskCount = 0;
+
         for(Long value : range) {
-        	valuesToCheck.enqueue(value);
+            ++index;
+            if(index == workSize) {
+                valuesToCheck.enqueue(array);
+                index = 0;
+                array = new Long[workSize];
+                ++taskCount;
+            }
+            array[index] = value;
         }
-    
-        while( true ){
-            Long previousCount = currentCount;
-        	try{
-        		Thread.sleep(1L);
-        	}catch(InterruptedException e){
-        		e.printStackTrace();
-        	}
-        	if( previousCount == currentCount){
-        		break;
-        	}
+        if(index >= 0) {
+            Long[] smaller = new Long[index+1];
+            System.arraycopy(array, 0, smaller, 0, index+1);
+            valuesToCheck.enqueue(smaller);
+            ++taskCount;
         }
+
+        while(true) {
+            finishedLock.lock();
+            if(finishedTasks == taskCount && valuesThatArePrime.isEmpty()) {
+                try {
+                    Thread.sleep(20);
+                } catch (InterruptedException ignored) {
+                }
+                break;
+            }
+            finishedLock.unlock();
+            Thread.yield();
+        }
+
         return currentCount;
     }
 
     /*
      * you may modify this method
      */
-    private void findPrimeValues(SimpleQueue<Long> valuesToCheck, SimpleQueue<Long> valuesThatArePrime) {
-    	while(true) {
-            Long current = valuesToCheck.dequeue();
-            if( current == null) return;
-	        if(Number.IsPrime(current)) {
-	            	valuesThatArePrime.enqueue(current);  
-	  		}
-    	}
+    private void findPrimeValues(SimpleQueue<Long[]> valuesToCheck, SimpleQueue<Long[]> valuesThatArePrime) {
+        while(true) {
+            Long[] toCheck = valuesToCheck.dequeue();
+            Collection<Long> primeValues = new ArrayList<>();
+            for(Long value : toCheck) {
+                if(Number.IsPrime(value)) {
+                    primeValues.add(value);
+                }
+            }
+            valuesThatArePrime.enqueue(primeValues.toArray(new Long[0]));
+            finishedLock.lock();
+            ++finishedTasks;
+            finishedLock.unlock();
+        }
     }
 
     /*
      * you may modify this method
      */
-    private void countPrimeValues(SimpleQueue<Long> valuesThatArePrime) {
-    	 while(true) {       
-    	   valuesThatArePrime.dequeue();
-           currentCount += 1;
-	       if(currentCount % 10000 == 0) {
-	    	   System.out.println("have " + currentCount + " prime values");
-	    	   System.out.flush();
-	       }  
-    	 }
+    private void countPrimeValues(SimpleQueue<Long[]> valuesThatArePrime) {
+        while(true) {
+            Long[] primeValues = valuesThatArePrime.dequeue();
+            currentCount += primeValues.length;
+            if(currentCount % 10000 == 0) {
+                System.out.println("have " + currentCount + " prime values");
+                System.out.flush();
+            }
+        }
     }
 }

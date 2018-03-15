@@ -9,4 +9,5 @@ package osdi.collections;
 public interface SimpleQueue<T> {
     void enqueue(T item);
     T dequeue();
+    boolean isEmpty();
 }
