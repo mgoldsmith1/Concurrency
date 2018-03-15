@@ -1,1 +1,1 @@
-# Deadlock-Avoidance
+# Deadlock & Race Condition Avoidance
