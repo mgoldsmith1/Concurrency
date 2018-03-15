@@ -27,7 +27,7 @@ class BoundBufferImpl<T> implements SimpleQueue<T> {
         empty.down();
         try {
             spinLock.lock();
-            queue.add(item);
+            queue.offer(item);     // O(1)
         } finally {
             spinLock.unlock();
         }
@@ -40,7 +40,7 @@ class BoundBufferImpl<T> implements SimpleQueue<T> {
         full.down();
         try {
             spinLock.lock();
-            item = queue.remove();
+            item = queue.poll();   // O(1)
         } finally {
             spinLock.unlock();
         }
