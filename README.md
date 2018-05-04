@@ -1,5 +1,5 @@
 # Dining Philosophers Problem 
-![screenshot](https://travis-ci.org/mgoldsmith1/Concurrency.svg?branch=master)
+![screenshot](https://travis-ci.org/mgoldsmith1/Dining-Philosophers-Problem.svg?branch=master)
 
 This project also covered the issue of race conditions.
 
